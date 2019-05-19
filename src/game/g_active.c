@@ -1002,11 +1002,6 @@ void ClientEvents(gentity_t *ent, int oldEventSequence)
 			ent->client->ps.powerups[PW_OPS_DISGUISED] = 0;
 			ent->client->disguiseClientNum             = -1;
 
-			if (g_misc.integer & G_MISC_LOOSE_SPAWN_PROTECTION)
-			{
-				ent->client->ps.powerups[PW_INVULNERABLE] = 0;
-			}
-
 			mg42_fire(ent);
 
 			// Only 1 stats bin for mg42
@@ -1024,11 +1019,6 @@ void ClientEvents(gentity_t *ent, int oldEventSequence)
 			// reset player disguise on firing tank mg
 			ent->client->ps.powerups[PW_OPS_DISGUISED] = 0;
 			ent->client->disguiseClientNum             = -1;
-
-			if (g_misc.integer & G_MISC_LOOSE_SPAWN_PROTECTION)
-			{
-				ent->client->ps.powerups[PW_INVULNERABLE] = 0;
-			}
 
 			mountedmg42_fire(ent);
 
@@ -1052,21 +1042,11 @@ void ClientEvents(gentity_t *ent, int oldEventSequence)
 			ent->client->ps.powerups[PW_OPS_DISGUISED] = 0;
 			ent->client->disguiseClientNum             = -1;
 
-			if (g_misc.integer & G_MISC_LOOSE_SPAWN_PROTECTION)
-			{
-				ent->client->ps.powerups[PW_INVULNERABLE] = 0;
-			}
-
 			aagun_fire(ent);
 			break;
 		case EV_FIRE_WEAPON:
 		case EV_FIRE_WEAPONB:
 		case EV_FIRE_WEAPON_LASTSHOT:
-			if (g_misc.integer & G_MISC_LOOSE_SPAWN_PROTECTION)
-			{
-				ent->client->ps.powerups[PW_INVULNERABLE] = 0;
-			}
-
 			FireWeapon(ent);
 			break;
 		default:
@@ -1184,7 +1164,7 @@ void ClientThink_real(gentity_t *ent, qboolean skipServerTime)
 	}
 
 	client->ps.ammo[WP_ARTY] = 0;
-	if (!G_AvailableAirstrikes(ent))
+	if (!G_AvailableAirstrike(ent))
 	{
 		client->ps.ammo[WP_ARTY] |= NO_AIRSTRIKE;
 	}
@@ -1611,11 +1591,23 @@ void ClientThink_real(gentity_t *ent, qboolean skipServerTime)
 
 		VectorCopy(ent->r.maxs, maxs);
 		maxs[2] = ClientHitboxMaxZ(ent);
+		// blue
 		G_RailBox(ent->r.currentOrigin, ent->r.mins, maxs, tv(0.f, 0.f, 1.f), ent->s.number);
 
 		head = G_BuildHead(ent, &refent, qtrue);
+		// blue
 		G_RailBox(head->r.currentOrigin, head->r.mins, head->r.maxs, tv(0.f, 0.f, 1.f), head->s.number | HITBOXBIT_HEAD);
 		G_FreeEntity(head);
+
+		if (client->ps.eFlags & EF_PRONE)
+		{
+			gentity_t *legs;
+
+			legs = G_BuildLeg(ent, &refent, qtrue);
+			// blue
+			G_RailBox(legs->r.currentOrigin, legs->r.mins, legs->r.maxs, tv(0.f, 0.f, 1.f), legs->s.number | HITBOXBIT_LEGS);
+			G_FreeEntity(legs);
+		}
 	}
 
 	// perform once-a-second actions
@@ -2307,11 +2299,23 @@ void ClientEndFrame(gentity_t *ent)
 
 		VectorCopy(ent->r.maxs, maxs);
 		maxs[2] = ClientHitboxMaxZ(ent);
+		// green
 		G_RailBox(ent->r.currentOrigin, ent->r.mins, maxs, tv(0.f, 1.f, 0.f), ent->s.number);
 
 		head = G_BuildHead(ent, &refent, qtrue);
-		G_RailBox(head->r.currentOrigin, head->r.mins, head->r.maxs, tv(0.f, 1.f, 0.f), ent->s.number | HITBOXBIT_HEAD);
+		// green
+		G_RailBox(head->r.currentOrigin, head->r.mins, head->r.maxs, tv(0.f, 1.f, 0.f), head->s.number | HITBOXBIT_HEAD);
 		G_FreeEntity(head);
+
+		if (ent->client->ps.eFlags & (EF_PRONE|EF_DEAD))
+		{
+			gentity_t *legs;
+
+			legs = G_BuildLeg(ent, &refent, qtrue);
+			// green
+			G_RailBox(legs->r.currentOrigin, legs->r.mins, legs->r.maxs, tv(0.f, 1.f, 0.f), legs->s.number | HITBOXBIT_LEGS);
+			G_FreeEntity(legs);
+		}
 	}
 
 	// store the client's current position for antilag traces

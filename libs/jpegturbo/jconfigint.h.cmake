@@ -1,11 +1,17 @@
 /* libjpeg-turbo build number */
-#undef BUILD
+#define BUILD "0"
+
+/* Compiler's inline keyword */
+#undef inline
 
 /* How to obtain function inlining. */
 #define INLINE __inline
 
 /* Define to the full name of this package. */
-#undef PACKAGE_NAME
+#define PACKAGE_NAME "libjpeg-turbo"
 
 /* Version number of package */
-#undef VERSION
+#define VERSION "1.5.3"
+
+/* The size of `size_t', as computed by sizeof. */
+#undef SIZEOF_SIZE_T

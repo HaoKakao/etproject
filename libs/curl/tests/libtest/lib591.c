@@ -5,11 +5,11 @@
  *                            | (__| |_| |  _ <| |___
  *                             \___|\___/|_| \_\_____|
  *
- * Copyright (C) 1998 - 2011, Daniel Stenberg, <daniel@haxx.se>, et al.
+ * Copyright (C) 1998 - 2012, 2017, Daniel Stenberg, <daniel@haxx.se>, et al.
  *
  * This software is licensed as described in the file COPYING, which
  * you should have received as part of this distribution. The terms
- * are also available at http://curl.haxx.se/docs/copyright.html.
+ * are also available at https://curl.haxx.se/docs/copyright.html.
  *
  * You may opt to use, copy, modify, merge, publish, distribute and/or sell
  * copies of the Software, and permit persons to whom the Software is
@@ -22,6 +22,8 @@
 #include "test.h"
 
 /* lib591 is used for test cases 591, 592, 593 and 594 */
+
+#include <limits.h>
 
 #include <fcntl.h>
 
@@ -40,15 +42,13 @@ int test(char *URL)
   int msgs_left;
   CURLMsg *msg;
   FILE *upload = NULL;
-  int error;
 
   start_test_timing();
 
   upload = fopen(libtest_arg3, "rb");
   if(!upload) {
-    error = ERRNO;
     fprintf(stderr, "fopen() failed with error: %d (%s)\n",
-            error, strerror(error));
+            errno, strerror(errno));
     fprintf(stderr, "Error opening file: (%s)\n", libtest_arg3);
     return TEST_ERR_FOPEN;
   }
@@ -112,15 +112,16 @@ int test(char *URL)
     /* At this point, timeout is guaranteed to be greater or equal than -1. */
 
     if(timeout != -1L) {
-      interval.tv_sec = timeout/1000;
-      interval.tv_usec = (timeout%1000)*1000;
+      int itimeout = (timeout > (long)INT_MAX) ? INT_MAX : (int)timeout;
+      interval.tv_sec = itimeout/1000;
+      interval.tv_usec = (itimeout%1000)*1000;
     }
     else {
       interval.tv_sec = 0;
       interval.tv_usec = 100000L; /* 100 ms */
     }
 
-    select_test(maxfd+1, &fdread, &fdwrite, &fdexcep, &interval);
+    select_test(maxfd + 1, &fdread, &fdwrite, &fdexcep, &interval);
 
     abort_on_test_timeout();
   }

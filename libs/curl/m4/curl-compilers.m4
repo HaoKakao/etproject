@@ -5,11 +5,11 @@
 #                            | (__| |_| |  _ <| |___
 #                             \___|\___/|_| \_\_____|
 #
-# Copyright (C) 1998 - 2012, Daniel Stenberg, <daniel@haxx.se>, et al.
+# Copyright (C) 1998 - 2018, Daniel Stenberg, <daniel@haxx.se>, et al.
 #
 # This software is licensed as described in the file COPYING, which
 # you should have received as part of this distribution. The terms
-# are also available at http://curl.haxx.se/docs/copyright.html.
+# are also available at https://curl.haxx.se/docs/copyright.html.
 #
 # You may opt to use, copy, modify, merge, publish, distribute and/or sell
 # copies of the Software, and permit persons to whom the Software is
@@ -21,7 +21,7 @@
 #***************************************************************************
 
 # File version for 'aclocal' use. Keep it a single number.
-# serial 61
+# serial 67
 
 
 dnl CURL_CHECK_COMPILER
@@ -64,9 +64,9 @@ AC_DEFUN([CURL_CHECK_COMPILER], [
 ***
 *** Whatever settings are present in CFLAGS will be used for this run.
 ***
-*** If you wish to help the cURL project to better support your compiler
+*** If you wish to help the curl project to better support your compiler
 *** you can report this and the required info on the libcurl development
-*** mailing list: http://cool.haxx.se/mailman/listinfo/curl-library/
+*** mailing list: https://cool.haxx.se/mailman/listinfo/curl-library/
 ***
 _EOF
   fi
@@ -84,7 +84,16 @@ AC_DEFUN([CURL_CHECK_COMPILER_CLANG], [
   if test "$curl_cv_have_def___clang__" = "yes"; then
     AC_MSG_RESULT([yes])
     compiler_id="CLANG"
-    clangver=`$CC -dumpversion`
+    fullclangver=`$CC -v 2>&1 | grep version`
+    clangver=`echo $fullclangver | grep "based on LLVM " | "$SED" 's/.*(based on LLVM \(@<:@0-9@:>@*\.@<:@0-9@:>@*\).*)/\1/'`
+    if test -z "$clangver"; then
+      if echo $fullclangver | grep "Apple LLVM version " >/dev/null; then
+        dnl Starting with XCode 7 / clang 3.7, Apple clang won't tell its upstream version
+        clangver="3.7"
+      else
+        clangver=`echo $fullclangver | "$SED" 's/.*version \(@<:@0-9@:>@*\.@<:@0-9@:>@*\).*/\1/'`
+      fi
+    fi
     clangvhi=`echo $clangver | cut -d . -f1`
     clangvlo=`echo $clangver | cut -d . -f2`
     compiler_num=`(expr $clangvhi "*" 100 + $clangvlo) 2>/dev/null`
@@ -97,7 +106,7 @@ AC_DEFUN([CURL_CHECK_COMPILER_CLANG], [
     flags_dbg_all="$flags_dbg_all -gdwarf-2"
     flags_dbg_all="$flags_dbg_all -gvms"
     flags_dbg_yes="-g"
-    flags_dbg_off="-g0"
+    flags_dbg_off=""
     flags_opt_all="-O -O0 -O1 -O2 -Os -O3 -O4"
     flags_opt_yes="-Os"
     flags_opt_off="-O0"
@@ -121,7 +130,7 @@ AC_DEFUN([CURL_CHECK_COMPILER_DEC_C], [
     compiler_id="DEC_C"
     flags_dbg_all="-g -g0 -g1 -g2 -g3"
     flags_dbg_yes="-g2"
-    flags_dbg_off="-g0"
+    flags_dbg_off=""
     flags_opt_all="-O -O0 -O1 -O2 -O3 -O4"
     flags_opt_yes="-O1"
     flags_opt_off="-O0"
@@ -157,8 +166,8 @@ AC_DEFUN([CURL_CHECK_COMPILER_GNU_C], [
     flags_dbg_all="$flags_dbg_all -gdwarf-2"
     flags_dbg_all="$flags_dbg_all -gvms"
     flags_dbg_yes="-g"
-    flags_dbg_off="-g0"
-    flags_opt_all="-O -O0 -O1 -O2 -O3 -Os"
+    flags_dbg_off=""
+    flags_opt_all="-O -O0 -O1 -O2 -O3 -Os -Og -Ofast"
     flags_opt_yes="-O2"
     flags_opt_off="-O0"
     CURL_CHECK_DEF([_WIN32], [], [silent])
@@ -236,7 +245,7 @@ AC_DEFUN([CURL_CHECK_COMPILER_INTEL_C], [
       compiler_id="INTEL_UNIX_C"
       flags_dbg_all="-g -g0"
       flags_dbg_yes="-g"
-      flags_dbg_off="-g0"
+      flags_dbg_off=""
       flags_opt_all="-O -O0 -O1 -O2 -O3 -Os"
       flags_opt_yes="-O2"
       flags_opt_off="-O0"
@@ -300,7 +309,7 @@ AC_DEFUN([CURL_CHECK_COMPILER_SGI_MIPS_C], [
     compiler_id="SGI_MIPS_C"
     flags_dbg_all="-g -g0 -g1 -g2 -g3"
     flags_dbg_yes="-g"
-    flags_dbg_off="-g0"
+    flags_dbg_off=""
     flags_opt_all="-O -O0 -O1 -O2 -O3 -Ofast"
     flags_opt_yes="-O2"
     flags_opt_off="-O0"
@@ -327,7 +336,7 @@ AC_DEFUN([CURL_CHECK_COMPILER_SGI_MIPSPRO_C], [
     compiler_id="SGI_MIPSPRO_C"
     flags_dbg_all="-g -g0 -g1 -g2 -g3"
     flags_dbg_yes="-g"
-    flags_dbg_off="-g0"
+    flags_dbg_off=""
     flags_opt_all="-O -O0 -O1 -O2 -O3 -Ofast"
     flags_opt_yes="-O2"
     flags_opt_off="-O0"
@@ -504,7 +513,7 @@ AC_DEFUN([CURL_COMPILER_WORKS_IFELSE], [
   dnl only do runtime verification when not cross-compiling
   if test "x$cross_compiling" != "xyes" &&
     test "$tmp_compiler_works" = "yes"; then
-    AC_RUN_IFELSE([
+    CURL_RUN_IFELSE([
       AC_LANG_PROGRAM([[
 #       ifdef __STDC__
 #         include <stdlib.h>
@@ -577,8 +586,11 @@ AC_DEFUN([CURL_SET_COMPILER_BASIC_OPTS], [
         #
       GNU_C)
         #
-        dnl Placeholder
-        tmp_CFLAGS="$tmp_CFLAGS"
+        dnl turn implicit-function-declaration warning into error,
+        dnl at least gcc 2.95 and later support this
+        if test "$compiler_num" -ge "295"; then
+          tmp_CFLAGS="$tmp_CFLAGS -Werror-implicit-function-declaration"
+        fi
         ;;
         #
       HP_UX_C)
@@ -615,12 +627,12 @@ AC_DEFUN([CURL_SET_COMPILER_BASIC_OPTS], [
         dnl #147: declaration is incompatible with 'previous one'
         dnl #165: too few arguments in function call
         dnl #266: function declared implicitly
-        tmp_CPPFLAGS="$tmp_CPPFLAGS -we 140,147,165,266"
+        tmp_CPPFLAGS="$tmp_CPPFLAGS -we140,147,165,266"
         dnl Disable some remarks
         dnl #279: controlling expression is constant
         dnl #981: operands are evaluated in unspecified order
         dnl #1469: "cc" clobber ignored
-        tmp_CPPFLAGS="$tmp_CPPFLAGS -wd 279,981,1469"
+        tmp_CPPFLAGS="$tmp_CPPFLAGS -wd279,981,1469"
         ;;
         #
       INTEL_WINDOWS_C)
@@ -856,8 +868,6 @@ AC_DEFUN([CURL_SET_COMPILER_WARNING_OPTS], [
       CLANG)
         #
         if test "$want_warnings" = "yes"; then
-          dnl All versions of clang support the same warnings as at least
-          dnl gcc 4.2.1 except -Wunused.
           tmp_CFLAGS="$tmp_CFLAGS -pedantic"
           tmp_CFLAGS="$tmp_CFLAGS -Wall -Wextra"
           tmp_CFLAGS="$tmp_CFLAGS -Wpointer-arith -Wwrite-strings"
@@ -879,6 +889,44 @@ AC_DEFUN([CURL_SET_COMPILER_WARNING_OPTS], [
           dnl Only clang 1.1 or later
           if test "$compiler_num" -ge "101"; then
             tmp_CFLAGS="$tmp_CFLAGS -Wunused"
+          fi
+          #
+          dnl Only clang 2.8 or later
+          if test "$compiler_num" -ge "208"; then
+            tmp_CFLAGS="$tmp_CFLAGS -Wvla"
+          fi
+          #
+          dnl Only clang 2.9 or later
+          if test "$compiler_num" -ge "209"; then
+            tmp_CFLAGS="$tmp_CFLAGS -Wshift-sign-overflow"
+          fi
+          #
+          dnl Only clang 3.2 or later
+          if test "$compiler_num" -ge "302"; then
+            case $host_os in
+            cygwin* | mingw*)
+              dnl skip missing-variable-declarations warnings for cygwin and
+              dnl mingw because the libtool wrapper executable causes them
+              ;;
+            *)
+              tmp_CFLAGS="$tmp_CFLAGS -Wmissing-variable-declarations"
+              ;;
+            esac
+          fi
+          #
+          dnl Only clang 3.6 or later
+          if test "$compiler_num" -ge "306"; then
+            tmp_CFLAGS="$tmp_CFLAGS -Wdouble-promotion"
+          fi
+          #
+          dnl Only clang 3.9 or later
+          if test "$compiler_num" -ge "309"; then
+            tmp_CFLAGS="$tmp_CFLAGS -Wcomma"
+            # avoid the varargs warning, fixed in 4.0
+            # https://bugs.llvm.org/show_bug.cgi?id=29140
+            if test "$compiler_num" -lt "400"; then
+              tmp_CFLAGS="$tmp_CFLAGS -Wno-varargs"
+            fi
           fi
         fi
         ;;
@@ -929,6 +977,7 @@ AC_DEFUN([CURL_SET_COMPILER_WARNING_OPTS], [
           dnl Only gcc 2.95 or later
           if test "$compiler_num" -ge "295"; then
             tmp_CFLAGS="$tmp_CFLAGS -Wno-long-long"
+            tmp_CFLAGS="$tmp_CFLAGS -Wbad-function-cast"
           fi
           #
           dnl Only gcc 2.96 or later
@@ -963,6 +1012,12 @@ AC_DEFUN([CURL_SET_COMPILER_WARNING_OPTS], [
           dnl Only gcc 3.4 or later
           if test "$compiler_num" -ge "304"; then
             tmp_CFLAGS="$tmp_CFLAGS -Wdeclaration-after-statement"
+            tmp_CFLAGS="$tmp_CFLAGS -Wold-style-definition"
+          fi
+          #
+          dnl Only gcc 4.0 or later
+          if test "$compiler_num" -ge "400"; then
+            tmp_CFLAGS="$tmp_CFLAGS -Wstrict-aliasing=3"
           fi
           #
           dnl Only gcc 4.2 or later
@@ -976,6 +1031,8 @@ AC_DEFUN([CURL_SET_COMPILER_WARNING_OPTS], [
             tmp_CFLAGS="$tmp_CFLAGS -Wmissing-parameter-type -Wempty-body"
             tmp_CFLAGS="$tmp_CFLAGS -Wclobbered -Wignored-qualifiers"
             tmp_CFLAGS="$tmp_CFLAGS -Wconversion -Wno-sign-conversion -Wvla"
+            dnl required for -Warray-bounds, included in -Wall
+            tmp_CFLAGS="$tmp_CFLAGS -ftree-vrp"
           fi
           #
           dnl Only gcc 4.5 or later
@@ -984,6 +1041,40 @@ AC_DEFUN([CURL_SET_COMPILER_WARNING_OPTS], [
             if test "$curl_cv_have_def__WIN32" = "yes"; then
               tmp_CFLAGS="$tmp_CFLAGS -Wno-pedantic-ms-format"
             fi
+          fi
+          #
+          dnl Only gcc 4.6 or later
+          if test "$compiler_num" -ge "406"; then
+            tmp_CFLAGS="$tmp_CFLAGS -Wdouble-promotion"
+          fi
+          #
+          dnl only gcc 4.8 or later
+          if test "$compiler_num" -ge "408"; then
+            tmp_CFLAGS="$tmp_CFLAGS -Wformat=2"
+          fi
+          #
+          dnl Only gcc 5 or later
+          if test "$compiler_num" -ge "500"; then
+            tmp_CFLAGS="$tmp_CFLAGS -Warray-bounds=2"
+          fi
+          #
+          dnl Only gcc 6 or later
+          if test "$compiler_num" -ge "600"; then
+            tmp_CFLAGS="$tmp_CFLAGS -Wshift-negative-value"
+            tmp_CFLAGS="$tmp_CFLAGS -Wshift-overflow=2"
+            tmp_CFLAGS="$tmp_CFLAGS -Wnull-dereference -fdelete-null-pointer-checks"
+            tmp_CFLAGS="$tmp_CFLAGS -Wduplicated-cond"
+            tmp_CFLAGS="$tmp_CFLAGS -Wunused-const-variable"
+          fi
+          #
+          dnl Only gcc 7 or later
+          if test "$compiler_num" -ge "700"; then
+            tmp_CFLAGS="$tmp_CFLAGS -Wduplicated-branches"
+            tmp_CFLAGS="$tmp_CFLAGS -Wrestrict"
+            tmp_CFLAGS="$tmp_CFLAGS -Walloc-zero"
+            tmp_CFLAGS="$tmp_CFLAGS -Wformat-overflow=2"
+            tmp_CFLAGS="$tmp_CFLAGS -Wformat-truncation=2"
+            tmp_CFLAGS="$tmp_CFLAGS -Wimplicit-fallthrough=4"
           fi
           #
         fi
@@ -1192,6 +1283,7 @@ dnl library or as a shared one on those systems on which
 dnl shared libraries support undefined symbols.
 
 AC_DEFUN([CURL_CHECK_CURLDEBUG], [
+  AC_REQUIRE([XC_LIBTOOL])dnl
   AC_REQUIRE([CURL_SHFUNC_SQUEEZE])dnl
   supports_curldebug="unknown"
   if test "$want_curldebug" = "yes"; then
@@ -1207,7 +1299,7 @@ AC_DEFUN([CURL_CHECK_CURLDEBUG], [
     fi
     if test "$supports_curldebug" != "no"; then
       if test "$enable_shared" = "yes" &&
-        test "$need_no_undefined" = "yes"; then
+        test "x$xc_lt_shlib_use_no_undefined" = 'xyes'; then
         supports_curldebug="no"
         AC_MSG_WARN([shared library does not support undefined symbols.])
       fi
@@ -1223,56 +1315,8 @@ AC_DEFUN([CURL_CHECK_CURLDEBUG], [
       want_curldebug="no"
     fi
   fi
-  #
-  if test "$want_curldebug" = "yes"; then
-    CPPFLAGS="-DCURLDEBUG $CPPFLAGS"
-    squeeze CPPFLAGS
-  fi
-  if test "$want_debug" = "yes"; then
-    CPPFLAGS="-DDEBUGBUILD $CPPFLAGS"
-    squeeze CPPFLAGS
-  fi
 ])
 
-
-dnl CURL_CHECK_NO_UNDEFINED
-dnl -------------------------------------------------
-dnl Checks if the -no-undefined flag must be used when
-dnl building shared libraries. This is required on all
-dnl systems on which shared libraries should not have
-dnl references to undefined symbols. This check should
-dnl not be done before AC-PROG-LIBTOOL.
-
-AC_DEFUN([CURL_CHECK_NO_UNDEFINED], [
-  AC_BEFORE([$0],[CURL_CHECK_CURLDEBUG])dnl
-  AC_MSG_CHECKING([if shared libraries need -no-undefined])
-  need_no_undefined="no"
-  case $host in
-    *-*-cygwin* | *-*-mingw* | *-*-pw32* | *-*-cegcc* | *-*-aix*)
-      need_no_undefined="yes"
-      ;;
-  esac
-  if test "x$allow_undefined" = "xno"; then
-    need_no_undefined="yes"
-  elif test "x$allow_undefined_flag" = "xunsupported"; then
-    need_no_undefined="yes"
-  fi
-  AC_MSG_RESULT($need_no_undefined)
-])
-
-
-dnl CURL_CHECK_PROG_CC
-dnl -------------------------------------------------
-dnl Check for compiler program, preventing CFLAGS and
-dnl CPPFLAGS from being unexpectedly changed.
-
-AC_DEFUN([CURL_CHECK_PROG_CC], [
-  ac_save_CFLAGS="$CFLAGS"
-  ac_save_CPPFLAGS="$CPPFLAGS"
-  AC_PROG_CC
-  CFLAGS="$ac_save_CFLAGS"
-  CPPFLAGS="$ac_save_CPPFLAGS"
-])
 
 
 dnl CURL_CHECK_COMPILER_HALT_ON_ERROR
@@ -1409,7 +1453,7 @@ AC_DEFUN([CURL_CHECK_COMPILER_SYMBOL_HIDING], [
     GNU_C)
       dnl Only gcc 3.4 or later
       if test "$compiler_num" -ge "304"; then
-        if $CC --help --verbose 2>&1 | grep fvisibility= > /dev/null ; then
+        if $CC --help --verbose 2>/dev/null | grep fvisibility= >/dev/null ; then
           tmp_EXTERN="__attribute__ ((__visibility__ (\"default\")))"
           tmp_CFLAGS="-fvisibility=hidden"
           supports_symbol_hiding="yes"
@@ -1492,6 +1536,42 @@ AC_DEFUN([CURL_CHECK_COMPILER_SYMBOL_HIDING], [
 ])
 
 
+dnl CURL_CHECK_COMPILER_PROTOTYPE_MISMATCH
+dnl -------------------------------------------------
+dnl Verifies if the compiler actually halts after the
+dnl compilation phase without generating any object
+dnl code file, when the source code tries to redefine
+dnl a prototype which does not match previous one.
+
+AC_DEFUN([CURL_CHECK_COMPILER_PROTOTYPE_MISMATCH], [
+  AC_REQUIRE([CURL_CHECK_COMPILER_HALT_ON_ERROR])dnl
+  AC_MSG_CHECKING([if compiler halts on function prototype mismatch])
+  AC_COMPILE_IFELSE([
+    AC_LANG_PROGRAM([[
+#     include <stdlib.h>
+      int rand(int n);
+      int rand(int n)
+      {
+        if(n)
+          return ++n;
+        else
+          return n;
+      }
+    ]],[[
+      int i[2]={0,0};
+      int j = rand(i[0]);
+      if(j)
+        return j;
+    ]])
+  ],[
+    AC_MSG_RESULT([no])
+    AC_MSG_ERROR([compiler does not halt on function prototype mismatch.])
+  ],[
+    AC_MSG_RESULT([yes])
+  ])
+])
+
+
 dnl CURL_VAR_MATCH (VARNAME, VALUE)
 dnl -------------------------------------------------
 dnl Verifies if shell variable VARNAME contains VALUE.
@@ -1553,4 +1633,3 @@ AC_DEFUN([CURL_VAR_STRIP], [
   [$1]="$ac_var_stripped"
   squeeze [$1]
 ])
-

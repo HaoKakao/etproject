@@ -1,6 +1,11 @@
 #
 # Project specific
 #
+/libs/curl/tests
+/2git
+/x.git
+/globalsrv/node_modules
+/globalsrv/package.json
 /build*/
 /project
 /obj

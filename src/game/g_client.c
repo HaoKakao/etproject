@@ -1333,6 +1333,37 @@ void AddMedicTeamBonus(gclient_t *client)
 }
 
 /**
+ * @brief G_CountTeamFieldops
+ * @param[in] team
+ * @param[in] alivecheck
+ * @return
+ */
+int G_CountTeamFieldops(team_t team)
+{
+	int numFieldops = 0;
+	int i, j;
+
+	for (i = 0; i < level.numConnectedClients; i++)
+	{
+		j = level.sortedClients[i];
+
+		if (level.clients[j].sess.sessionTeam != team)
+		{
+			continue;
+		}
+
+		if (level.clients[j].sess.playerType != PC_FIELDOPS)
+		{
+			continue;
+		}
+
+		numFieldops++;
+	}
+
+	return numFieldops;
+}
+
+/**
  * @brief ClientCleanName
  * @param[in] in
  * @param[out] out
@@ -3025,6 +3056,12 @@ void ClientSpawn(gentity_t *ent, qboolean revived, qboolean teamChange, qboolean
 	if (level.intermissiontime)
 	{
 		MoveClientToIntermission(ent);
+
+		// send current mapvote tally
+		if (g_gametype.integer == GT_WOLF_MAPVOTE)
+		{
+			G_IntermissionVoteTally(ent);
+		}
 	}
 	else
 	{
@@ -3218,6 +3255,30 @@ void ClientDisconnect(int clientNum)
 		G_LogPrintf("WeaponStats: %s\n", G_createStats(ent));
 	}
 
+	// remove mapvote
+	if (g_gametype.integer == GT_WOLF_MAPVOTE && g_gamestate.integer == GS_INTERMISSION)
+	{
+		if (g_mapVoteFlags.integer & MAPVOTE_MULTI_VOTE && ent->client->ps.eFlags & EF_VOTED)
+		{
+			for (i = 0; i < 3; i++)
+			{
+				if (ent->client->sess.mapVotedFor[i] != -1)
+				{
+					level.mapvoteinfo[ent->client->sess.mapVotedFor[i]].numVotes   -= (i + 1);
+					level.mapvoteinfo[ent->client->sess.mapVotedFor[i]].totalVotes -= (i + 1);
+				}
+			}
+		}
+		else if (ent->client->ps.eFlags & EF_VOTED)
+		{
+			level.mapvoteinfo[ent->client->sess.mapVotedFor[0]].numVotes--;
+			level.mapvoteinfo[ent->client->sess.mapVotedFor[0]].totalVotes--;
+		}
+
+		// send updated vote tally to all
+		G_IntermissionVoteTally(NULL);
+	}
+
 	G_LogPrintf("ClientDisconnect: %i\n", clientNum);
 
 	trap_UnlinkEntity(ent);
@@ -3288,22 +3349,25 @@ float ClientHitboxMaxZ(gentity_t *hitEnt)
 
 	if (hitEnt->client->ps.eFlags & EF_DEAD)
 	{
-		return 4;
+		return DEAD_BODYHEIGHT;
 	}
 	else if (hitEnt->client->ps.eFlags & EF_PRONE)
 	{
-		return 4;
+		return PRONE_BODYHEIGHT;
+	}
+	else if (hitEnt->client->ps.eFlags & EF_CROUCHING &&
+		hitEnt->client->ps.velocity[0] == 0.f && hitEnt->client->ps.velocity[1] == 0.f)
+	{
+		// crouched idle animation is lower than the moving one
+		return CROUCH_IDLE_BODYHEIGHT;
 	}
 	else if (hitEnt->client->ps.eFlags & EF_CROUCHING)
 	{
-		// changed this because the crouched moving
-		// animation is higher than the idle one
-		// and that should be the most commonly used
-		//return 18;
-		return 24;
+		// crouched moving animation is higher than the idle one
+		return CROUCH_BODYHEIGHT;
 	}
 	else
 	{
-		return 36;
+		return DEFAULT_BODYHEIGHT;
 	}
 }

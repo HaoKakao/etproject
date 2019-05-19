@@ -482,7 +482,7 @@ gentity_t *Weapon_Syringe(gentity_t *ent)
 	}
 
 	if (traceEnt->client->ps.pm_type == PM_DEAD &&
-		traceEnt->client->sess.sessionTeam == ent->client->sess.sessionTeam)
+	    traceEnt->client->sess.sessionTeam == ent->client->sess.sessionTeam)
 	{
 		// moved all the revive stuff into its own function
 		usedSyringe = ReviveEntity(ent, traceEnt);
@@ -2405,32 +2405,78 @@ weapengineergoto3:
 }
 
 /**
+ * @brief G_MaxAvailableAirstrikes
+ * @param[in] ent
+ * @return
+ */
+int G_MaxAvailableAirstrikes(gentity_t *ent)
+{
+	int playerCount;
+	int fieldopsCount;
+
+	playerCount   = G_TeamCount(ent, -1);
+	fieldopsCount = G_CountTeamFieldops(ent->client->sess.sessionTeam);
+
+	if (fieldopsCount > 6)
+	{
+		fieldopsCount = 6;
+	}
+	else if (fieldopsCount < 2)
+	{
+		fieldopsCount = 2;
+	}
+
+	// max number of airstrikes per team per minute
+	return ceil(fieldopsCount * playerCount * g_heavyWeaponRestriction.integer * 0.01);
+}
+
+/**
+ * @brief G_MaxAvailableArtillery
+ * @param[in] ent
+ * @return
+ */
+int G_MaxAvailableArtillery(gentity_t *ent)
+{
+	int playerCount;
+	int fieldopsCount;
+
+	playerCount   = G_TeamCount(ent, -1);
+	fieldopsCount = G_CountTeamFieldops(ent->client->sess.sessionTeam);
+
+	if (fieldopsCount > 6)
+	{
+		fieldopsCount = 6;
+	}
+	else if (fieldopsCount < 2)
+	{
+		fieldopsCount = 2;
+	}
+
+	// max number of artillery per team per minute
+	return ceil(fieldopsCount * playerCount * g_heavyWeaponRestriction.integer * 0.01);
+}
+
+/**
  * @brief G_AvailableAirstrikes
  * @param[in] ent
  * @return
  */
-qboolean G_AvailableAirstrikes(gentity_t *ent)
+qboolean G_AvailableAirstrike(gentity_t *ent)
 {
-	if ((g_misc.integer & G_MISC_ARTY_STRIKE_COMBINE) && !G_AvailableArtillery(ent))
-	{
-		return qfalse;
-	}
-
 	if (ent->client->sess.sessionTeam == TEAM_AXIS)
 	{
-		if (level.axisBombCounter > 0)
+		if (level.axisAirstrikeCounter > 60000)
 		{
 			return qfalse;
 		}
 	}
 	else
 	{
-		if (level.alliedBombCounter > 0)
+		if (level.alliedAirstrikeCounter > 60000)
 		{
 			return qfalse;
 		}
 	}
-
 	return qtrue;
 }
 
@@ -2443,14 +2489,14 @@ qboolean G_AvailableArtillery(gentity_t *ent)
 {
 	if (ent->client->sess.sessionTeam == TEAM_AXIS)
 	{
-		if (level.axisArtyCounter > 0)
+		if (level.axisArtilleryCounter > 60000)
 		{
 			return qfalse;
 		}
 	}
 	else
 	{
-		if (level.alliedArtyCounter > 0)
+		if (level.alliedArtilleryCounter > 60000)
 		{
 			return qfalse;
 		}
@@ -2464,34 +2510,57 @@ qboolean G_AvailableArtillery(gentity_t *ent)
  */
 void G_AddAirstrikeToCounters(gentity_t *ent)
 {
-	if (g_misc.integer & G_MISC_ARTY_STRIKE_COMBINE)
-	{
-		G_AddArtilleryToCounters(ent);
-	}
-
 	if (ent->client->sess.sessionTeam == TEAM_AXIS)
 	{
-		level.axisBombCounter += team_airstrikeTime.integer * 1000;
+		if (team_maxAirstrikes.integer)
+		{
+			level.axisAirstrikeCounter += 60000 / team_maxAirstrikes.integer;
+		}
+		else
+		{
+			level.axisAirstrikeCounter += 60000 / G_MaxAvailableAirstrikes(ent);
+		}
 	}
 	else
 	{
-		level.alliedBombCounter += team_airstrikeTime.integer * 1000;
+		if (team_maxAirstrikes.integer)
+		{
+			level.alliedAirstrikeCounter += 60000 / team_maxAirstrikes.integer;
+		}
+		else
+		{
+			level.alliedAirstrikeCounter += 60000 / G_MaxAvailableAirstrikes(ent);
+		}
 	}
 }
 
 /**
- * @brief arty/airstrike rate limiting
+ * @brief G_AddArtilleryToCounters
  * @param[in] ent
  */
 void G_AddArtilleryToCounters(gentity_t *ent)
 {
 	if (ent->client->sess.sessionTeam == TEAM_AXIS)
 	{
-		level.axisArtyCounter += team_artyTime.integer * 1000;
+		if (team_maxArtillery.integer)
+		{
+			level.axisArtilleryCounter += 60000 / team_maxArtillery.integer;
+		}
+		else
+		{
+			level.axisArtilleryCounter += 60000 / G_MaxAvailableArtillery(ent);
+		}
 	}
 	else
 	{
-		level.alliedArtyCounter += team_artyTime.integer * 1000;
+		if (team_maxArtillery.integer)
+		{
+			level.alliedArtilleryCounter += 60000 / team_maxArtillery.integer;
+		}
+		else
+		{
+			level.alliedArtilleryCounter += 60000 / G_MaxAvailableArtillery(ent);
+		}
 	}
 }
 
@@ -2543,20 +2612,15 @@ qboolean weapon_checkAirStrike(gentity_t *ent)
 		return qfalse; // do nothing, don't hurt anyone
 	}
 
-	if (ent->s.teamNum == TEAM_AXIS || ent->s.teamNum == TEAM_ALLIES)
+	if (!G_AvailableAirstrike(ent->parent))
 	{
-		if (level.numActiveAirstrikes[ent->s.teamNum - 1] > 6 || !G_AvailableAirstrikes(ent->parent))
-		{
-			G_HQSay(ent->parent, COLOR_YELLOW, "HQ: ", "All available planes are already en-route.");
+		G_HQSay(ent->parent, COLOR_YELLOW, "HQ: ", "All available planes are already en-route.");
 
-			G_GlobalClientEvent(EV_AIRSTRIKEMESSAGE, 0, ent->parent - g_entities);
+		G_GlobalClientEvent(EV_AIRSTRIKEMESSAGE, 0, ent->parent - g_entities);
 
-			ent->active = qfalse;
+		ent->active = qfalse;
 
-			return qfalse;
-		}
-
-		level.numActiveAirstrikes[ent->s.teamNum - 1]++;
+		return qfalse;
 	}
 
 	return qtrue;
@@ -2671,15 +2735,11 @@ void weapon_callAirStrike(gentity_t *ent)
 
 		G_GlobalClientEvent(EV_AIRSTRIKEMESSAGE, 1, ent->parent - g_entities);
 
-		if (ent->s.teamNum == TEAM_AXIS || ent->s.teamNum == TEAM_ALLIES)
-		{
-			level.numActiveAirstrikes[ent->s.teamNum - 1]--;
-		}
-
 		ent->active = qfalse;   // plane arrive and shell is abort
 	}
 	else
 	{
+		// arty/airstrike rate limiting
 		G_AddAirstrikeToCounters(ent->parent);
 
 		G_HQSay(ent->parent, COLOR_YELLOW, "Pilot: ", "Affirmative, on my way!");
@@ -2775,33 +2835,6 @@ void weapon_callAirStrike(gentity_t *ent)
 }
 
 /**
- * @brief Sound effect for spotter round, had to do this as half-second bomb warning
- * @details Sound is played when the bomb is close enough to the ground
- * @param[in,out] ent
- */
-void artilleryThink(gentity_t *ent)
-{
-	float groundHeight;
-
-	groundHeight = BG_GetGroundHeightAtPoint(ent->r.currentOrigin);
-
-	// are we enough close to the ground to produce shelling sound
-	if (ent->r.currentOrigin[2] - groundHeight < 1024 /*4096*/)
-	{
-		int i;
-
-		i = rand() % 3;
-
-		G_AddEvent(ent, EV_GENERAL_SOUND_VOLUME, GAMESOUND_WPN_ARTILLERY_FLY_1 + i);
-		ent->s.onFireStart = 255;   // sound control
-
-		return;
-	}
-
-	ent->nextthink = level.time + FRAMETIME;
-}
-
-/**
  * @brief Makes smoke disappear after a bit (just unregisters stuff)
  * @param[out] ent
  */
@@ -2888,8 +2921,8 @@ void artillerySpotterThink(gentity_t *ent)
 	// next bomb drop, add randomness
 	ent->nextthink = bomb->nextthink + crandom() * 800;
 
-	// overwrite, spotter is thinking for next bomb so let think for shelling sound
-	bomb->nextthink = level.time + FRAMETIME;
+	// overwrite
+	bomb->nextthink = 0;
 
 	if (bomboffset[2] >= BG_GetSkyHeightAtPoint(bomboffset))
 	{
@@ -2992,7 +3025,7 @@ void Weapon_Artillery(gentity_t *ent)
 	// final result
 	VectorCopy(tr.endpos, pos);
 
-	// arty/airstrike rate limiting.
+	// arty/airstrike rate limiting
 	G_AddArtilleryToCounters(ent);
 
 	G_HQSay(ent, COLOR_YELLOW, "Fire Mission: ", "Firing for effect!");
@@ -3352,6 +3385,7 @@ qboolean Bullet_Fire_Extended(gentity_t *source, gentity_t *attacker, vec3_t sta
 	{
 		tent              = G_TempEntity(tr.endpos, EV_BULLET_HIT_FLESH);
 		tent->s.eventParm = traceEnt->s.number;
+		tent->s.weapon    = source->s.weapon;
 
 		if (AccuracyHit(traceEnt, attacker))
 		{
@@ -3419,6 +3453,7 @@ qboolean Bullet_Fire_Extended(gentity_t *source, gentity_t *attacker, vec3_t sta
 
 		tent->s.eventParm       = DirToByte(reflect);
 		tent->s.otherEntityNum2 = ENTITYNUM_NONE;
+		tent->s.weapon          = source->s.weapon;
 	}
 	tent->s.otherEntityNum = attacker->s.number;
 
@@ -4017,7 +4052,7 @@ weapFireTable_t weapFireTable[] =
 	{ WP_STEN,                 Bullet_Fire,                 NULL,                       NULL,               ET_GENERAL,            EF_NONE,                    SVF_NONE,                     CONTENTS_NONE,   TR_LINEAR,      0,     { { 0, 0, 0 }, { 0, 0, 0 } },                    MASK_SHOT,        0,         0,       0,     0,        },
 	{ WP_MEDIC_SYRINGE,        Weapon_Syringe,              NULL,                       NULL,               ET_GENERAL,            EF_NONE,                    SVF_NONE,                     CONTENTS_NONE,   TR_LINEAR,      0,     { { 0, 0, 0 }, { 0, 0, 0 } },                    MASK_SHOT,        0,         0,       0,     0,        },
 	{ WP_AMMO,                 Weapon_MagicAmmo,            MagicSink,                  NULL,               ET_ITEM,               EF_NONE,                    SVF_NONE,                     CONTENTS_NONE,   TR_GRAVITY,     0,     { { 0, 0, 0 }, { 0, 0, 0 } },                    MASK_SHOT,        30000,     0,       0,     0,        },
-	{ WP_ARTY,                 NULL,                        artilleryThink,             G_ArtilleryExplode, ET_MISSILE,            EF_NONE,                    SVF_BROADCAST,                CONTENTS_NONE,   TR_GRAVITY,     1,     { { 0, 0, 0 }, { 0, 0, 0 } },                    MASK_MISSILESHOT, 2000,      2,       0,     0,        },
+	{ WP_ARTY,                 NULL,                        NULL,                       G_ArtilleryExplode, ET_MISSILE,            EF_NONE,                    SVF_BROADCAST,                CONTENTS_NONE,   TR_GRAVITY,     1,     { { 0, 0, 0 }, { 0, 0, 0 } },                    MASK_MISSILESHOT, 2000,      2,       0,     0,        },
 	{ WP_SILENCER,             Bullet_Fire,                 NULL,                       NULL,               ET_GENERAL,            EF_NONE,                    SVF_NONE,                     CONTENTS_NONE,   TR_LINEAR,      0,     { { 0, 0, 0 }, { 0, 0, 0 } },                    MASK_SHOT,        0,         0,       0,     0,        },
 	{ WP_DYNAMITE,             weapon_grenadelauncher_fire, DynaSink,                   DynaFree,           ET_MISSILE,            EF_BOUNCE_HALF | EF_BOUNCE, SVF_BROADCAST,                CONTENTS_CORPSE, TR_GRAVITY,     -50,   { { -12.f, -12.f, 0.f }, { 12.f, 12.f, 20.f } }, MASK_MISSILESHOT, 15000,     0,       5,     16500,    },
 	{ WP_SMOKETRAIL,           NULL,                        artilleryGoAway,            NULL,               ET_MISSILE,            EF_BOUNCE,                  SVF_NONE,                     CONTENTS_NONE,   TR_GRAVITY,     1,     { { 0, 0, 0 }, { 0, 0, 0 } },                    MASK_MISSILESHOT, 1000,      0,       0,     0,        },
@@ -4064,7 +4099,7 @@ weapFireTable_t weapFireTable[] =
 	{ WP_MORTAR2_SET,          weapon_mortar_fire,          NULL,                       NULL,               ET_MISSILE,            EF_NONE,                    SVF_BROADCAST,                CONTENTS_NONE,   TR_GRAVITY,     -50,   { { -4.f, -4.f, 0.f }, { 4.f, 4.f, 6.f } },      MASK_MISSILESHOT, 0,         0,       0,     0,        },
 	{ WP_BAZOOKA,              weapon_antitank_fire,        G_ExplodeMissile,           NULL,               ET_MISSILE,            EF_NONE,                    SVF_BROADCAST,                CONTENTS_NONE,   TR_LINEAR,      -50,   { { 0, 0, 0 }, { 0, 0, 0 } },                    MASK_MISSILESHOT, 20000,     4,       0,     0,        },
 	{ WP_MP34,                 Bullet_Fire,                 NULL,                       NULL,               ET_GENERAL,            EF_NONE,                    SVF_NONE,                     CONTENTS_NONE,   TR_LINEAR,      0,     { { 0, 0, 0 }, { 0, 0, 0 } },                    MASK_SHOT,        0,         0,       0,     0,        },
-        { WP_AIRSTRIKE,            NULL,                        artilleryThink,             NULL,               ET_MISSILE,            EF_NONE,                    SVF_BROADCAST,                CONTENTS_NONE,   TR_GRAVITY,     1,     { { 0, 0, 0 }, { 0, 0, 0 } },                    MASK_MISSILESHOT, FRAMETIME, 2,       0,     0,        },
+        { WP_AIRSTRIKE,            NULL,                        NULL,                       NULL,               ET_MISSILE,            EF_NONE,                    SVF_BROADCAST,                CONTENTS_NONE,   TR_GRAVITY,     1,     { { 0, 0, 0 }, { 0, 0, 0 } },                    MASK_MISSILESHOT, 0,         2,       0,     0,        },
 };
 // *INDENT-ON*
 
@@ -4119,7 +4154,9 @@ void FireWeapon(gentity_t *ent)
 	if (weapFireTable[ent->s.weapon].fire)
 	{
 		gentity_t *pFiredShot = NULL;       // Omni-bot To tell bots about projectiles
+#ifdef FEATURE_LUA
 		if (!G_LuaHook_WeaponFire(ent->s.number, ent->s.weapon, &pFiredShot))
+#endif
 		{
 			pFiredShot = weapFireTable[ent->s.weapon].fire(ent);
 		}

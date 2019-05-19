@@ -2832,8 +2832,9 @@ static void CG_ServerCommand(void)
 		return;
 	case CPM_HASH:                        // "cpm"
 	{
-		int        iconnumber;
-		const char *iconstring;
+		int                iconnumber;
+		const char         *iconstring;
+		popupMessageType_t pmType;
 
 		iconstring = CG_Argv(2);
 
@@ -2853,7 +2854,15 @@ static void CG_ServerCommand(void)
 			iconnumber = PM_MESSAGE;
 		}
 
-		CG_AddPMItem(PM_MESSAGE, CG_LocalizeServerCommand(CG_Argv(1)), " ", cgs.media.pmImages[iconnumber], 0, 0, NULL);
+		if (strstr(CG_Argv(1), " connected") || strstr(CG_Argv(1), " disconnected"))
+		{
+			pmType = PM_CONNECT;
+		}
+		else
+		{
+			pmType = PM_MESSAGE;
+		}
+		CG_AddPMItem(pmType, CG_LocalizeServerCommand(CG_Argv(1)), " ", cgs.media.pmImages[iconnumber], 0, 0, NULL);
 		return;
 	}
 	case CP_HASH:                         // "cp"

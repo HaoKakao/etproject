@@ -308,7 +308,10 @@ void CG_NewClientInfo(int clientNum)
 		{
 			CG_SoundPlaySoundScript(GetRankTableData(cgs.clientinfo[cg.clientNum].team, newInfo.rank)->soundNames, NULL, -1, qtrue);
 
-			CG_AddPMItemBig(PM_RANK, va(CG_TranslateString("Promoted to rank %s!"), GetRankTableData(cgs.clientinfo[cg.clientNum].team, newInfo.rank)->names), rankicons[newInfo.rank][cgs.clientinfo[cg.clientNum].team == TEAM_AXIS ? 1 : 0][0].shader);
+			if (cg_popupBigFilter.integer & POPUP_BIG_FILTER_RANK)
+			{
+				CG_AddPMItemBig(PM_RANK, va(CG_TranslateString("Promoted to rank %s!"), GetRankTableData(cgs.clientinfo[cg.clientNum].team, newInfo.rank)->names), rankicons[newInfo.rank][cgs.clientinfo[cg.clientNum].team == TEAM_AXIS ? 1 : 0][0].shader);
+			}
 		}
 
 		// Make sure primary class and primary weapons are correct for
@@ -339,11 +342,14 @@ void CG_NewClientInfo(int clientNum)
 				if (!cgs.demoCamera.renderingFreeCam && !cgs.demoCamera.renderingWeaponCam)
 				{
 #endif
-				CG_AddPMItemBig(PM_SKILL, va(CG_TranslateString("Increased %s skill to level %i!"), CG_TranslateString(GetSkillTableData(i)->skillNames), newInfo.skill[i]), cgs.media.skillPics[i]);
+				if (cg_popupBigFilter.integer & POPUP_BIG_FILTER_SKILL)
+				{
+					CG_AddPMItemBig(PM_SKILL, va(CG_TranslateString("Increased %s skill to level %i!"), CG_TranslateString(GetSkillTableData(i)->skillNames), newInfo.skill[i]), cgs.media.skillPics[i]);
+				}
 
 				CG_PriorityCenterPrint(va(CG_TranslateString("You have been rewarded with %s"), CG_TranslateString(cg_skillRewards[i][newInfo.skill[i] - 1])), 400, cg_fontScaleCP.value, 99999);
 #ifdef FEATURE_EDV
-			}
+				}
 #endif
 			}
 		}
@@ -2800,9 +2806,10 @@ void CG_Player(centity_t *cent)
 #endif
 
 	// DEBUG
-	if (cg_debugPlayerHitboxes.integer)
+	if (cg_debugPlayerHitboxes.integer && cent->currentState.eType != ET_CORPSE &&
+			cent->currentState.number == cg.snap->ps.clientNum)
 	{
-		// position marker?
+		// position marker
 		if (cg_debugPlayerHitboxes.integer & 4)
 		{
 			int x, zd, zu;
@@ -2819,8 +2826,8 @@ void CG_Player(centity_t *cent)
 
 			VectorAdd(bmins, cent->lerpOrigin, bmins);
 			VectorAdd(bmaxs, cent->lerpOrigin, bmaxs);
-			// white
-			CG_RailTrail(tv(1.0f, 1.0f, 1.0f), bmins, bmaxs, 1, cent->currentState.number | HITBOXBIT_CLIENT);
+			// red
+			CG_RailTrail(tv(1.0f, 0.0f, 0.0f), bmins, bmaxs, 1, cent->currentState.number | HITBOXBIT_CLIENT);
 		}
 
 		// head axis
@@ -2846,38 +2853,50 @@ void CG_Player(centity_t *cent)
 			for (idx = 0; idx < 3; idx++)
 			{
 				VectorMA(start, 32.0f, axis[idx], ends[idx]);
-				// green
-				CG_RailTrail2(tv(0.0f, 1.0f, 0.0f), start, ends[idx], -1, -1);
+				// red
+				CG_RailTrail2(tv(1.0f, 0.0f, 0.0f), start, ends[idx], -1, -1);
 			}
 		}
 
 		// hitbox
 		if (cg_debugPlayerHitboxes.integer & 1)
 		{
-			vec3_t mins, maxs;
+			vec3_t mins, maxs, org, forward;
 
 			VectorCopy(cg.predictedPlayerState.mins, mins);
 			VectorCopy(cg.predictedPlayerState.maxs, maxs);
 
 			if (cg.predictedPlayerState.eFlags & EF_PRONE)
 			{
-				maxs[2] = maxs[2] - (cg.predictedPlayerState.standViewHeight - PRONE_VIEWHEIGHT + 8);
+				maxs[2] = maxs[2] - (cg.predictedPlayerState.standViewHeight - PRONE_BODYHEIGHT + 8);
+			}
+			else if (cg.predictedPlayerState.pm_flags & PMF_DUCKED
+				&& cg.predictedPlayerState.velocity[0] == 0.f && cg.predictedPlayerState.velocity[1] == 0.f)
+			{
+				maxs[2] = cg.predictedPlayerState.crouchMaxZ + DEFAULT_BODYHEIGHT_DELTA - CROUCH_IDLE_BODYHEIGHT_DELTA;
 			}
 			else if (cg.predictedPlayerState.pm_flags & PMF_DUCKED)
 			{
 				maxs[2] = cg.predictedPlayerState.crouchMaxZ;
 			}
+			else if (cg.predictedPlayerState.eFlags & EF_DEAD)
+			{
+				maxs[2] = cg.predictedPlayerState.deadViewHeight + DEAD_BODYHEIGHT_DELTA;
+			}
+			else
+			{
+				maxs[2] = cg.predictedPlayerState.standViewHeight + DEFAULT_BODYHEIGHT_DELTA;
+			}
 
 			VectorAdd(cent->lerpOrigin, mins, mins);
 			VectorAdd(cent->lerpOrigin, maxs, maxs);
-			// blue
-			CG_RailTrail(tv(0.0f, 0.0f, 1.f), mins, maxs, 1, cent->currentState.number | HITBOXBIT_CLIENT);
+			// red
+			CG_RailTrail(tv(1.0f, 0.0f, 0.0f), mins, maxs, 1, cent->currentState.number | HITBOXBIT_CLIENT);
 
-			if (cg.predictedPlayerState.eFlags & EF_PRONE)
+			// head and legs
+			if (cg.predictedPlayerState.eFlags & (EF_PRONE | EF_DEAD))
 			{
-				vec3_t org, forward;
-
-				// The legs
+				// legs
 				VectorCopy(playerlegsProneMins, mins);
 				VectorCopy(playerlegsProneMaxs, maxs);
 
@@ -2885,27 +2904,61 @@ void CG_Player(centity_t *cent)
 				forward[2] = 0;
 				VectorNormalizeFast(forward);
 
-				org[0] = cent->lerpOrigin[0] + forward[0] * -32;
-				org[1] = cent->lerpOrigin[1] + forward[1] * -32;
-				org[2] = cent->lerpOrigin[2] + cg.pmext.proneLegsOffset;
+				if (cg.predictedPlayerState.eFlags & EF_PRONE)
+				{
+					org[0] = cent->lerpOrigin[0] + forward[0] * -24;
+					org[1] = cent->lerpOrigin[1] + forward[1] * -24;
+					org[2] = cent->lerpOrigin[2] + cg.pmext.proneLegsOffset;
+				}
+				else // EF_DEAD
+				{
+					org[0] = cent->lerpOrigin[0] + forward[0] * 32;
+					org[1] = cent->lerpOrigin[1] + forward[1] * 32;
+					org[2] = cent->lerpOrigin[2] - cg.pmext.proneLegsOffset;
+				}
 
 				VectorAdd(org, mins, mins);
 				VectorAdd(org, maxs, maxs);
 				// red
 				CG_RailTrail(tv(1.0f, 0.0f, 0.0f), mins, maxs, 1, cent->currentState.number | HITBOXBIT_CLIENT | HITBOXBIT_LEGS);
 
-				// And the head
+				// head
 				VectorSet(mins, -6, -6, -22);
 				VectorSet(maxs, 6, 6, -10);
 
-				org[0] = cent->lerpOrigin[0] + forward[0] * 24;
-				org[1] = cent->lerpOrigin[1] + forward[1] * 24;
-				org[2] = cent->lerpOrigin[2] + 8;
+				if (cg.predictedPlayerState.eFlags & EF_PRONE)
+				{
+					org[0] = cent->lerpOrigin[0] + forward[0] * 24;
+					org[1] = cent->lerpOrigin[1] + forward[1] * 24;
+					org[2] = cent->lerpOrigin[2] + 8;
+				}
+				else // EF_DEAD
+				{
+					org[0] = cent->lerpOrigin[0] + forward[0] * -32;
+					org[1] = cent->lerpOrigin[1] + forward[1] * -32;
+					org[2] = cent->lerpOrigin[2] - 4;
+				}
 
 				VectorAdd(org, mins, mins);
 				VectorAdd(org, maxs, maxs);
-				// orange
-				CG_RailTrail(tv(1.0f, 0.5f, 1.f), mins, maxs, 1, cent->currentState.number | HITBOXBIT_CLIENT | HITBOXBIT_HEAD);
+				// red
+				CG_RailTrail(tv(1.0f, 0.0f, 0.0f), mins, maxs, 1, cent->currentState.number | HITBOXBIT_CLIENT | HITBOXBIT_HEAD);
+			}
+			else
+			{
+				org[0] = cent->lerpOrigin[0];
+				org[1] = cent->lerpOrigin[1];
+				org[2] = maxs[2] + 6;
+
+				// head
+				VectorSet(mins, -6, -6, -6);
+				VectorSet(maxs, 6, 6, 6);
+
+				VectorAdd(org, mins, mins);
+				VectorAdd(org, maxs, maxs);
+
+				// red
+				CG_RailTrail(tv(1.0f, 0.0f, 0.0f), mins, maxs, 1, cent->currentState.number | HITBOXBIT_CLIENT | HITBOXBIT_HEAD);
 			}
 		}
 	} // END DEBUG

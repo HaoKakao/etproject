@@ -77,8 +77,19 @@
 #define DEFAULT_VIEWHEIGHT  40
 #define CROUCH_VIEWHEIGHT   16
 #define DEAD_VIEWHEIGHT     -16
-
 #define PRONE_VIEWHEIGHT    -8
+
+#define DEFAULT_BODYHEIGHT     36  ///< delta height -4
+#define CROUCH_BODYHEIGHT      24  ///< delta height 8
+#define CROUCH_IDLE_BODYHEIGHT 18  ///< delta height 2
+#define DEAD_BODYHEIGHT        4   ///< delta height 20
+#define PRONE_BODYHEIGHT       -8  ///< delta height 0
+
+#define DEFAULT_BODYHEIGHT_DELTA        -4  ///< default body height 36
+#define CROUCH_BODYHEIGHT_DELTA          8  ///< crouch  body height 24
+#define CROUCH_IDLE_BODYHEIGHT_DELTA     2  ///< crouch  idle body height 18
+#define DEAD_BODYHEIGHT_DELTA            20 ///< dead    body height 4
+#define PRONE_BODYHEIGHT_DELTA           0  ///< prone   body height -8
 
 extern vec3_t playerlegsProneMins;
 extern vec3_t playerlegsProneMaxs;
@@ -2882,6 +2893,8 @@ typedef enum popupMessageType_e
 	PM_TEAM,
 	PM_AMMOPICKUP,
 	PM_HEALTHPICKUP,
+	PM_WEAPONPICKUP,
+	PM_CONNECT,
 	PM_NUM_TYPES
 } popupMessageType_t;
 
