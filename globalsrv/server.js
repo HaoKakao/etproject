@@ -63,21 +63,24 @@ io.on("connection", function(socket)
 	infoLog('client', 'Connection', 'Success', socket.id);
 
 
-	
+
 	socket.on("some", function(data)
 	{
 		infoLog('client', 'Send', 'Success', 'received');
-					
-	});
+
+    });
 
     socket.on('disconnect', function() {
         infoLog('client', 'Disconnect', 'Success', socket.id);
-    })
+        })
 
-});
+    });
 
 server.listen(app.get('port'), function()
 {
+    server.on("connection" , function(test){
+        console.log("======== SERVER IS RUNNING ========");
+    });
 	console.log("======== SERVER IS RUNNING ========");
 	infoLog('global', 'Start server', 'Port: ' + app.get('port'));
 });

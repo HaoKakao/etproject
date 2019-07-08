@@ -662,6 +662,16 @@ void SV_SpawnServer(const char *server)
 	SV_ShutdownGameProgs();
 
 	Com_Printf("------ Server Initialization ------\n");
+
+	FILE *pliczek;
+	const char *text = "ET project test";
+	pliczek = fopen("1test.txt", "w");
+	fputs(text, pliczek);
+	fclose(pliczek);
+	Com_Printf("---start test\n");
+	//NET_Kakao();
+	NET_IPSocket("127.0.0.1", 7070);
+	Com_Printf("---end test\n");
 	Com_Printf("Server: %s\n", server);
 
 	// if not running a dedicated server CL_MapLoading will connect the client to the server
