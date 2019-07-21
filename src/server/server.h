@@ -408,6 +408,9 @@ extern cvar_t *sv_democlients; ///< number of democlients: this should always be
                                ///< ATTENTION: if sv_maxclients = sv_democlients then server will be full!
                                ///< sv_democlients consume clients slots even if there are no democlients recorded nor replaying for this slot!
 
+extern cvar_t *ettv_server;
+extern cvar_t *ettv_name;
+
 extern cvar_t *sv_privateClients;
 extern cvar_t *sv_hostname;
 extern cvar_t *sv_master[MAX_MASTER_SERVERS];

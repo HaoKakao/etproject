@@ -2060,6 +2060,9 @@ extern vmCvar_t g_skipCorrection;
 
 extern vmCvar_t g_extendedNames;
 
+extern vmCvar_t ettv_server;
+extern vmCvar_t ettv_name;
+
 #ifdef FEATURE_RATING
 extern vmCvar_t g_skillRating;
 #endif

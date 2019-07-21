@@ -58,6 +58,10 @@ void G_loadMatchGame(void)
 	int  aRandomValues[MAX_REINFSEEDS];
 	char strReinfSeeds[MAX_STRING_CHARS];
 
+	if (ettv_server.integer) {
+		G_Printf("ETTV: %sSetting server as ettv...\n", S_COLOR_MAGENTA);
+	}
+	
 	G_Printf("Setting MOTD...\n");
 	trap_SetConfigstring(CS_CUSTMOTD + 0, server_motd0.string);
 	trap_SetConfigstring(CS_CUSTMOTD + 1, server_motd1.string);

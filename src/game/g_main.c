@@ -338,6 +338,10 @@ vmCvar_t g_skipCorrection;
 
 vmCvar_t g_extendedNames;
 
+// ETTV
+vmCvar_t ettv_server;
+vmCvar_t ettv_name;
+
 #ifdef FEATURE_RATING
 vmCvar_t g_skillRating;
 #endif
@@ -361,6 +365,10 @@ cvarTable_t gameCvarTable[] =
 
 	// latched vars
 	{ &g_gametype,                          "g_gametype",                          "4",                          CVAR_SERVERINFO | CVAR_LATCH,                    0, qfalse, qfalse }, // default to GT_WOLF_CAMPAIGN
+
+	// ettv vars
+	{ &ettv_server,							"ettv_server",							"0",						CVAR_SERVERINFO | CVAR_LATCH,                    0, qfalse, qfalse },
+	{ &ettv_name,							"ettv_name",							"ETTV",						CVAR_SERVERINFO | CVAR_LATCH,                    0, qfalse, qfalse },
 
 	// multiplayer stuffs
 	{ &g_redlimbotime,                      "g_redlimbotime",                      "30000",                      CVAR_SERVERINFO | CVAR_LATCH,                    0, qfalse, qfalse },
@@ -2242,7 +2250,7 @@ void G_InitGame(int levelTime, int randomSeed, int restart, int legacyServer, in
 	char   *logDate;
 
 	G_Printf("------- Game Initialization -------\ngamename: %s\ngamedate: %s\n", GAMEVERSION, __DATE__);
-
+	
 	srand(randomSeed);
 
 	// make sure pak2.pk3 gets referenced on server so pure checks pass
