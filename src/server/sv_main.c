@@ -47,9 +47,6 @@ cvar_t *sv_allowDownload;
 cvar_t *sv_maxclients;
 cvar_t *sv_democlients;         // number of slots reserved for playing a demo
 
-cvar_t *ettv_server;
-cvar_t *ettv_name;
-
 cvar_t *sv_privateClients;      // number of clients reserved for password
 cvar_t *sv_hostname;
 cvar_t *sv_reconnectlimit;      // minimum seconds between connect messages
@@ -905,8 +902,6 @@ void SVC_Info(netadr_t from)
 	Info_SetValueForKey(infostring, "sv_maxclients", va("%i", sv_maxclients->integer - sv_privateClients->integer - sv_democlients->integer));
 	Info_SetValueForKey(infostring, "gametype", va("%i", sv_gametype->integer));
 	Info_SetValueForKey(infostring, "pure", va("%i", sv_pure->integer));
-	Info_SetValueForKey(infostring, "ettv_server", va("%i", ettv_server->integer));
-	Info_SetValueForKey(infostring, "ettv_name", ettv_name->string);
 
 	if (sv_minPing->integer)
 	{
